@@ -46,10 +46,45 @@ public class SsoServerLogin {
         CookieUtil.remove(request, response, CONF.SSO_SESSIONID);
     }
 
+    /**
+     *
+     * @param request
+     * @param response
+     * @return
+     */
     public static SsoUser loginCheck(HttpServletRequest request, HttpServletResponse response) {
         String cookieValue = CookieUtil.getValue(request, CONF.SSO_SESSIONID);
 
-//        SsoUser user = SsoLoginUtil.getUserIdFromCookieValue(cookieValue);
+        String userId = SsoLoginUtil.getUserIdFromCookieValue(cookieValue);
+
+        SsoUser user = getUserByUserId(userId);
+        if (user != null) {
+            return user;
+        }
+        //从sso服务端重定向回客户端，此时客户端顶级域名下还没有cookie
+        CookieUtil.remove(request, response, CONF.SSO_SESSIONID);
+        userId = SsoLoginUtil.getUserIdFromCookieValue(request.getParameter(CONF.SSO_SESSIONID));
+        user = getUserByUserId(userId);
+
+        if (user != null) {
+            //在客户端顶级域名下存入cookie
+            CookieUtil.set(response, CONF.SSO_SESSIONID, SsoLoginUtil.makeCookieValue(user));
+            return user;
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @param userId
+     * @return
+     */
+    private static SsoUser getUserByUserId(String userId) {
+        if (userId == null) {
+            return null;
+        }
+        SsoUser user = SsoServerStore.get(userId);
+        return user;
     }
 }
 
